@@ -1,56 +1,54 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
-	"log"
+	"context"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	_ "github.com/lib/pq"
+	"github.com/mahendrakalkura/saas-blueprint/internal/api/v1"
+	"github.com/mahendrakalkura/saas-blueprint/internal/config"
+	"github.com/mahendrakalkura/saas-blueprint/internal/database"
+	"github.com/mahendrakalkura/saas-blueprint/internal/logger"
+	appMiddleware "github.com/mahendrakalkura/saas-blueprint/internal/middleware"
 )
 
-var db *sql.DB
-
 func main() {
-	// Initialize database connection
-	var err error
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
+	// Load configuration
+	cfg := config.Load()
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	// Initialize logger
+	log := logger.New(cfg.Server.Environment)
+	log.Info().Str("environment", cfg.Server.Environment).Msg("Starting application")
 
-	db, err = sql.Open("postgres", connStr)
+	// Initialize database
+	db, err := database.New(&cfg.Database)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal().Err(err).Msg("Failed to initialize database")
 	}
 	defer db.Close()
 
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
-	}
-	log.Println("Successfully connected to database")
+	log.Info().Msg("Database connection established")
 
 	// Initialize router
 	r := chi.NewRouter()
 
-	// Middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	// Global middleware
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(appMiddleware.Logger(log.Logger))
+	r.Use(middleware.Recoverer)
+	r.Use(appMiddleware.SecurityHeaders)
+	r.Use(middleware.Compress(5))
 
 	// CORS configuration
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://frontend:3000"},
+		AllowedOrigins:   cfg.Server.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -58,23 +56,52 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	// Routes
-	r.Get("/api/health", healthHandler)
+	// API v1 routes
+	r.Mount("/api/v1", v1.NewRouter(db))
 
-	// Start server
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	// Legacy health endpoint for backward compatibility
+	healthHandler := v1.NewHealthHandler(db)
+	r.Get("/api/health", healthHandler.Check)
+
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:         ":" + cfg.Server.Port,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
-	log.Printf("Server starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		log.Fatal("Server failed to start:", err)
-	}
-}
+	// Start server in a goroutine
+	serverErrors := make(chan error, 1)
+	go func() {
+		log.Info().Str("port", cfg.Server.Port).Msg("Server starting")
+		serverErrors <- srv.ListenAndServe()
+	}()
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok","message":"Backend is running"}`))
+	// Wait for interrupt signal
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrors:
+		log.Fatal().Err(err).Msg("Server failed to start")
+
+	case sig := <-shutdown:
+		log.Info().Str("signal", sig.String()).Msg("Shutdown signal received")
+
+		// Create context with timeout for shutdown
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
+		defer cancel()
+
+		// Shutdown server gracefully
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Error().Err(err).Msg("Graceful shutdown failed")
+			if err := srv.Close(); err != nil {
+				log.Fatal().Err(err).Msg("Failed to close server")
+			}
+		}
+
+		log.Info().Msg("Server stopped gracefully")
+	}
 }
