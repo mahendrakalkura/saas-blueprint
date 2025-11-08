@@ -1,29 +1,29 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: saas-db
-    restart: unless-stopped
+    container_name: saas-db-prod
+    restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
-    ports:
-      - "${DB_PORT}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - saas-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
-    container_name: saas-backend
-    restart: unless-stopped
+      target: production
+    container_name: saas-backend-prod
+    restart: always
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -31,32 +31,31 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       PORT: ${BACKEND_PORT}
-    ports:
-      - "${BACKEND_PORT}:8080"
-    volumes:
-      - ./backend:/app
-      - backend_cache:/go/pkg/mod
+      JWT_SECRET: ${JWT_SECRET}
+      ENVIRONMENT: production
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - saas-network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: development
-    container_name: saas-frontend
-    restart: unless-stopped
-    environment:
-      VITE_API_URL: http://localhost:${BACKEND_PORT}
+      target: production
+    container_name: saas-frontend-prod
+    restart: always
     ports:
-      - "${FRONTEND_PORT}:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "80:80"
     depends_on:
       - backend
+    networks:
+      - saas-network
 
 volumes:
-  postgres_data:
-  backend_cache:
+  postgres_data_prod:
+
+networks:
+  saas-network:
+    driver: bridge
