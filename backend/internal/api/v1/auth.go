@@ -10,19 +10,23 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
 	"github.com/mahendrakalkura/saas-blueprint/internal/models"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
+	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
+	"github.com/rs/zerolog/log"
 )
 
 type AuthHandler struct {
-	userRepo    *repository.UserRepository
-	sessionRepo *repository.SessionRepository
-	cfg         *config.Config
+	userRepo     *repository.UserRepository
+	sessionRepo  *repository.SessionRepository
+	workerClient *worker.Client
+	cfg          *config.Config
 }
 
-func NewAuthHandler(userRepo *repository.UserRepository, sessionRepo *repository.SessionRepository, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(userRepo *repository.UserRepository, sessionRepo *repository.SessionRepository, workerClient *worker.Client, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
-		userRepo:    userRepo,
-		sessionRepo: sessionRepo,
-		cfg:         cfg,
+		userRepo:     userRepo,
+		sessionRepo:  sessionRepo,
+		workerClient: workerClient,
+		cfg:          cfg,
 	}
 }
 
@@ -113,7 +117,25 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Send verification email (will be implemented with email service)
+	// Enqueue welcome email
+	firstName := ""
+	if user.FirstName != nil {
+		firstName = *user.FirstName
+	}
+	if err := h.workerClient.EnqueueWelcomeEmail(user.Email, firstName); err != nil {
+		log.Error().Err(err).Str("email", user.Email).Msg("Failed to enqueue welcome email")
+		// Don't fail registration if email fails
+	}
+
+	// Enqueue verification email
+	baseURL := h.cfg.Server.FrontendURL
+	if baseURL == "" {
+		baseURL = "http://localhost:3000"
+	}
+	if err := h.workerClient.EnqueueVerificationEmail(user.Email, verificationToken, baseURL); err != nil {
+		log.Error().Err(err).Str("email", user.Email).Msg("Failed to enqueue verification email")
+		// Don't fail registration if email fails
+	}
 
 	// Generate tokens
 	accessToken, err := auth.GenerateAccessToken(user.ID, user.Email, h.cfg.JWT.Secret)
@@ -361,9 +383,19 @@ func (h *AuthHandler) RequestPasswordReset(w http.ResponseWriter, r *http.Reques
 	expiresAt := time.Now().Add(1 * time.Hour)
 
 	// Set reset token (don't reveal if user exists)
-	_ = h.userRepo.SetPasswordResetToken(r.Context(), req.Email, resetToken, expiresAt)
+	err = h.userRepo.SetPasswordResetToken(r.Context(), req.Email, resetToken, expiresAt)
 
-	// TODO: Send password reset email (will be implemented with email service)
+	// Enqueue password reset email only if user exists (but don't reveal this)
+	if err == nil {
+		baseURL := h.cfg.Server.FrontendURL
+		if baseURL == "" {
+			baseURL = "http://localhost:3000"
+		}
+		if err := h.workerClient.EnqueuePasswordResetEmail(req.Email, resetToken, baseURL); err != nil {
+			log.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue password reset email")
+			// Don't fail the request if email fails
+		}
+	}
 
 	// Always return success to prevent user enumeration
 	respondJSON(w, http.StatusOK, map[string]string{

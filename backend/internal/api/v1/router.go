@@ -6,9 +6,10 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
 	"github.com/mahendrakalkura/saas-blueprint/internal/database"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
+	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
 )
 
-func NewRouter(db *database.DB, cfg *config.Config) *chi.Mux {
+func NewRouter(db *database.DB, workerClient *worker.Client, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Repositories
@@ -17,7 +18,8 @@ func NewRouter(db *database.DB, cfg *config.Config) *chi.Mux {
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
-	authHandler := NewAuthHandler(userRepo, sessionRepo, cfg)
+	authHandler := NewAuthHandler(userRepo, sessionRepo, workerClient, cfg)
+	monitoringHandler := NewMonitoringHandler(cfg)
 
 	// Health check endpoints
 	r.Get("/health", healthHandler.Check)
@@ -40,6 +42,13 @@ func NewRouter(db *database.DB, cfg *config.Config) *chi.Mux {
 		r.Use(auth.AuthMiddleware(&cfg.JWT))
 
 		r.Get("/auth/me", authHandler.Me)
+
+		// Monitoring routes (TODO: add admin-only middleware)
+		r.Route("/monitoring", func(r chi.Router) {
+			r.Get("/queues", monitoringHandler.GetQueueStats)
+			r.Get("/servers", monitoringHandler.GetServerInfo)
+			r.Get("/scheduled", monitoringHandler.GetScheduledTasks)
+		})
 
 		// Additional protected routes will be added here
 		// r.Route("/users", func(r chi.Router) {
