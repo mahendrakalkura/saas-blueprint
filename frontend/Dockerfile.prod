@@ -1,0 +1,62 @@
+# Multi-stage build for optimized production image
+
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
+WORKDIR /build
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Build arguments
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build the application
+RUN npm run build
+
+# Stage 2: Runtime with Nginx
+FROM nginx:alpine
+
+# Install envsubst for runtime environment variable substitution
+RUN apk add --no-cache gettext
+
+# Copy built assets
+COPY --from=builder /build/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Create a template for runtime env var substitution
+RUN echo 'window.ENV = {' > /usr/share/nginx/html/env-config.template.js && \
+    echo '  VITE_API_URL: "${VITE_API_URL}"' >> /usr/share/nginx/html/env-config.template.js && \
+    echo '};' >> /usr/share/nginx/html/env-config.template.js
+
+# Copy startup script
+COPY <<'EOF' /docker-entrypoint.sh
+#!/bin/sh
+set -e
+
+# Replace environment variables in the template
+envsubst '${VITE_API_URL}' < /usr/share/nginx/html/env-config.template.js > /usr/share/nginx/html/env-config.js
+
+# Start nginx
+exec nginx -g 'daemon off;'
+EOF
+
+RUN chmod +x /docker-entrypoint.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+
+EXPOSE 80
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
