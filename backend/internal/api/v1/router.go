@@ -34,7 +34,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
-	authHandler := NewAuthHandler(userRepo, sessionRepo, workerClient, cfg)
+	authHandler := NewAuthHandler(userRepo, sessionRepo, workerClient, cfg, mfaService)
 	fileHandler := NewFileHandler(fileRepo, userRepo, storageService)
 	billingHandler := NewBillingHandler(paymentService, subRepo, userRepo, cfg)
 	orgHandler := NewOrganizationHandler(orgRepo, memberRepo, userRepo, workerClient)
@@ -58,6 +58,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 		r.Post("/verify-email", authHandler.VerifyEmail)
 		r.Post("/request-password-reset", authHandler.RequestPasswordReset)
 		r.Post("/reset-password", authHandler.ResetPassword)
+		r.Post("/mfa/verify", authHandler.VerifyMFA)
 
 		// OAuth routes
 		r.Get("/google", oauthHandler.GoogleLogin)

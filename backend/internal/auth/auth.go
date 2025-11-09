@@ -13,11 +13,18 @@ import (
 const (
 	AccessTokenDuration  = 15 * time.Minute
 	RefreshTokenDuration = 7 * 24 * time.Hour
+	MFATokenDuration     = 5 * time.Minute
 )
 
 type Claims struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
+	jwt.RegisteredClaims
+}
+
+type MFAClaims struct {
+	UserID string `json:"user_id"`
+	Type   string `json:"type"` // "mfa_pending"
 	jwt.RegisteredClaims
 }
 
@@ -87,4 +94,43 @@ func GenerateVerificationToken() (string, error) {
 		return "", fmt.Errorf("failed to generate verification token: %w", err)
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// GenerateMFAToken generates a temporary MFA token for login verification
+func GenerateMFAToken(userID, secret string) (string, error) {
+	claims := MFAClaims{
+		UserID: userID,
+		Type:   "mfa_pending",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(MFATokenDuration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+// ValidateMFAToken validates a temporary MFA token
+func ValidateMFAToken(tokenString, secret string) (*MFAClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &MFAClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	if claims, ok := token.Claims.(*MFAClaims); ok && token.Valid {
+		if claims.Type != "mfa_pending" {
+			return nil, fmt.Errorf("invalid token type")
+		}
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token")
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/mahendrakalkura/saas-blueprint/internal/auth"
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
+	"github.com/mahendrakalkura/saas-blueprint/internal/mfa"
 	"github.com/mahendrakalkura/saas-blueprint/internal/models"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
@@ -19,14 +20,16 @@ type AuthHandler struct {
 	sessionRepo  *repository.SessionRepository
 	workerClient *worker.Client
 	cfg          *config.Config
+	mfaService   *mfa.Service
 }
 
-func NewAuthHandler(userRepo *repository.UserRepository, sessionRepo *repository.SessionRepository, workerClient *worker.Client, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(userRepo *repository.UserRepository, sessionRepo *repository.SessionRepository, workerClient *worker.Client, cfg *config.Config, mfaService *mfa.Service) *AuthHandler {
 	return &AuthHandler{
 		userRepo:     userRepo,
 		sessionRepo:  sessionRepo,
 		workerClient: workerClient,
 		cfg:          cfg,
+		mfaService:   mfaService,
 	}
 }
 
@@ -59,11 +62,18 @@ type ResetPasswordRequest struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
+type VerifyMFARequest struct {
+	MFAToken string `json:"mfa_token" validate:"required"`
+	Code     string `json:"code" validate:"required"`
+}
+
 type AuthResponse struct {
-	AccessToken  string        `json:"access_token"`
-	RefreshToken string        `json:"refresh_token"`
-	ExpiresIn    int64         `json:"expires_in"`
-	User         *models.User  `json:"user"`
+	AccessToken  string       `json:"access_token,omitempty"`
+	RefreshToken string       `json:"refresh_token,omitempty"`
+	ExpiresIn    int64        `json:"expires_in,omitempty"`
+	User         *models.User `json:"user,omitempty"`
+	MFARequired  bool         `json:"mfa_required,omitempty"`
+	MFAToken     string       `json:"mfa_token,omitempty"`
 }
 
 // Register creates a new user account
@@ -199,6 +209,22 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Verify password
 	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
 		respondError(w, http.StatusUnauthorized, "Invalid email or password")
+		return
+	}
+
+	// Check if MFA is enabled
+	if user.MFAEnabled {
+		// Generate temporary MFA token (5 minute expiry)
+		mfaToken, err := auth.GenerateMFAToken(user.ID, h.cfg.JWT.Secret)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "Failed to generate MFA token")
+			return
+		}
+
+		respondJSON(w, http.StatusOK, AuthResponse{
+			MFARequired: true,
+			MFAToken:    mfaToken,
+		})
 		return
 	}
 
@@ -424,6 +450,103 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "Password reset successfully"})
+}
+
+// VerifyMFA verifies MFA code and completes login
+func (h *AuthHandler) VerifyMFA(w http.ResponseWriter, r *http.Request) {
+	var req VerifyMFARequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	// Validate MFA token
+	claims, err := auth.ValidateMFAToken(req.MFAToken, h.cfg.JWT.Secret)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, "Invalid or expired MFA token")
+		return
+	}
+
+	// Get user
+	user, err := h.userRepo.GetByID(r.Context(), claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, "User not found")
+		return
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		respondError(w, http.StatusForbidden, "Account is deactivated")
+		return
+	}
+
+	// Check if MFA is still enabled
+	if !user.MFAEnabled || user.MFASecret == nil {
+		respondError(w, http.StatusBadRequest, "MFA is not enabled")
+		return
+	}
+
+	// Try to verify as TOTP code first
+	isValid := h.mfaService.VerifyCode(*user.MFASecret, req.Code)
+
+	// If TOTP failed, try backup codes
+	var backupCodeUsed bool
+	if !isValid && user.MFABackupCodes != nil {
+		var remainingCodes []string
+		isValid, remainingCodes = h.mfaService.VerifyBackupCode(req.Code, user.MFABackupCodes)
+		if isValid {
+			backupCodeUsed = true
+			// Update user with remaining backup codes
+			user.MFABackupCodes = remainingCodes
+			if err := h.userRepo.Update(r.Context(), user); err != nil {
+				log.Error().Err(err).Msg("Failed to update backup codes")
+				// Continue anyway since auth was successful
+			}
+		}
+	}
+
+	if !isValid {
+		respondError(w, http.StatusUnauthorized, "Invalid code")
+		return
+	}
+
+	// Generate tokens
+	accessToken, err := auth.GenerateAccessToken(user.ID, user.Email, h.cfg.JWT.Secret)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to generate access token")
+		return
+	}
+
+	refreshToken, err := auth.GenerateRefreshToken()
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to generate refresh token")
+		return
+	}
+
+	// Create session
+	session := &models.Session{
+		UserID:                user.ID,
+		RefreshToken:          refreshToken,
+		RefreshTokenExpiresAt: time.Now().Add(h.cfg.JWT.RefreshTokenDuration),
+		UserAgent:             stringPtr(r.UserAgent()),
+		IPAddress:             stringPtr(r.RemoteAddr),
+	}
+
+	if err := h.sessionRepo.Create(r.Context(), session); err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to create session")
+		return
+	}
+
+	if backupCodeUsed {
+		log.Info().Str("user_id", user.ID).Msg("User logged in with backup code")
+	}
+
+	respondJSON(w, http.StatusOK, AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    int64(auth.AccessTokenDuration.Seconds()),
+		User:         user,
+	})
 }
 
 func respondJSON(w http.ResponseWriter, status int, payload interface{}) {

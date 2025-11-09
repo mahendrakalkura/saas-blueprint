@@ -32,6 +32,25 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password })
 
+    // Check if MFA is required
+    if (response.mfa_required) {
+      return response // Return MFA token for verification
+    }
+
+    // Normal login flow
+    localStorage.setItem('access_token', response.access_token)
+    localStorage.setItem('refresh_token', response.refresh_token)
+    setUser(response.user)
+
+    return response
+  }
+
+  const verifyMFA = async (mfaToken, code) => {
+    const response = await api.post('/auth/mfa/verify', {
+      mfa_token: mfaToken,
+      code,
+    })
+
     localStorage.setItem('access_token', response.access_token)
     localStorage.setItem('refresh_token', response.refresh_token)
     setUser(response.user)
@@ -117,6 +136,7 @@ export function AuthProvider({ children }) {
     user,
     loading,
     login,
+    verifyMFA,
     register,
     logout,
     refreshToken,
