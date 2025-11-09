@@ -4,6 +4,8 @@ import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { FilesPage } from '../pages/FilesPage'
+import { BillingPage } from '../pages/BillingPage'
+import { PricingPage } from '../pages/PricingPage'
 import { ProtectedRoute } from '../components/ProtectedRoute'
 
 export function AppRoutes() {
@@ -12,6 +14,7 @@ export function AppRoutes() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
       <Route
         path="/dashboard"
         element={
@@ -25,6 +28,14 @@ export function AppRoutes() {
         element={
           <ProtectedRoute>
             <FilesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            <BillingPage />
           </ProtectedRoute>
         }
       />
