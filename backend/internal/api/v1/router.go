@@ -46,6 +46,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	notificationHandler := NewNotificationHandler(notificationRepo)
 	oauthHandler := NewOAuthHandler(oauthService, userRepo, sessionRepo, oauthRepo, cfg)
 	mfaHandler := NewMFAHandler(mfaService, userRepo)
+	docsHandler := NewDocsHandler()
 
 	// Rate limit configurations
 	globalRateLimit := ratelimit.Config{
@@ -60,6 +61,10 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 		Requests: cfg.RateLimit.AuthenticatedRequests,
 		Window:   cfg.RateLimit.AuthenticatedWindow,
 	}
+
+	// Documentation routes (no auth required)
+	r.Get("/docs", docsHandler.ServeSwaggerUI)
+	r.Get("/docs/swagger.json", docsHandler.GetSwaggerJSON)
 
 	// Health check endpoints (global rate limit)
 	r.Group(func(r chi.Router) {

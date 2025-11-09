@@ -1,5 +1,43 @@
 package main
 
+// @title           SaaS Blueprint API
+// @version         1.0
+// @description     A comprehensive SaaS starter kit with authentication, payments, organizations, and more.
+// @termsOfService  https://example.com/terms
+
+// @contact.name   API Support
+// @contact.url    https://example.com/support
+// @contact.email  support@example.com
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:8080
+// @BasePath  /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
+// @tag.name Auth
+// @tag.description Authentication and user management endpoints
+
+// @tag.name Files
+// @tag.description File upload and management
+
+// @tag.name Billing
+// @tag.description Subscription and payment management
+
+// @tag.name Organizations
+// @tag.description Multi-tenant organization management
+
+// @tag.name Notifications
+// @tag.description Real-time notification system
+
+// @tag.name MFA
+// @tag.description Multi-factor authentication setup and management
+
 import (
 	"context"
 	"net/http"

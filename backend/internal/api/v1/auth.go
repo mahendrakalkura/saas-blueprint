@@ -77,6 +77,17 @@ type AuthResponse struct {
 }
 
 // Register creates a new user account
+// @Summary Register a new user
+// @Description Create a new user account with email and password
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Registration details"
+// @Success 201 {object} AuthResponse
+// @Failure 400 {object} map[string]string "Invalid request payload"
+// @Failure 409 {object} map[string]string "Email already registered"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -183,6 +194,18 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login authenticates a user
+// @Summary Login to account
+// @Description Authenticate user with email and password, returns tokens or MFA challenge
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Login credentials"
+// @Success 200 {object} AuthResponse "Login successful or MFA required"
+// @Failure 400 {object} map[string]string "Invalid request payload"
+// @Failure 401 {object} map[string]string "Invalid email or password"
+// @Failure 403 {object} map[string]string "Account is deactivated"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -356,6 +379,15 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 // Me returns the current authenticated user
+// @Summary Get current user
+// @Description Get the currently authenticated user's information
+// @Tags Auth
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} models.User
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 404 {object} map[string]string "User not found"
+// @Router /auth/me [get]
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	userCtx, ok := auth.GetUserFromContext(r)
 	if !ok {
@@ -453,6 +485,17 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // VerifyMFA verifies MFA code and completes login
+// @Summary Verify MFA code
+// @Description Complete login by verifying MFA TOTP code or backup code
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body VerifyMFARequest true "MFA verification details"
+// @Success 200 {object} AuthResponse
+// @Failure 400 {object} map[string]string "Invalid request payload"
+// @Failure 401 {object} map[string]string "Invalid or expired MFA token"
+// @Failure 403 {object} map[string]string "Account is deactivated"
+// @Router /auth/mfa/verify [post]
 func (h *AuthHandler) VerifyMFA(w http.ResponseWriter, r *http.Request) {
 	var req VerifyMFARequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
