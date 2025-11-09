@@ -5,23 +5,26 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/auth"
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
 	"github.com/mahendrakalkura/saas-blueprint/internal/database"
+	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
 )
 
-func NewRouter(db *database.DB, workerClient *worker.Client, storageService *storage.Service, cfg *config.Config) *chi.Mux {
+func NewRouter(db *database.DB, workerClient *worker.Client, storageService *storage.Service, paymentService *payment.Service, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Repositories
 	userRepo := repository.NewUserRepository(db.DB)
 	sessionRepo := repository.NewSessionRepository(db.DB)
 	fileRepo := repository.NewFileRepository(db.DB)
+	subRepo := repository.NewSubscriptionRepository(db.DB)
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
 	authHandler := NewAuthHandler(userRepo, sessionRepo, workerClient, cfg)
 	fileHandler := NewFileHandler(fileRepo, userRepo, storageService)
+	billingHandler := NewBillingHandler(paymentService, subRepo, userRepo, cfg)
 	monitoringHandler := NewMonitoringHandler(cfg)
 
 	// Health check endpoints
@@ -40,6 +43,9 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 		r.Post("/reset-password", authHandler.ResetPassword)
 	})
 
+	// Stripe webhook (public, but verified)
+	r.Post("/webhooks/stripe", billingHandler.HandleWebhook)
+
 	// Protected routes (require authentication)
 	r.Group(func(r chi.Router) {
 		r.Use(auth.AuthMiddleware(&cfg.JWT))
@@ -53,6 +59,16 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 			r.Get("/", fileHandler.ListFiles)
 			r.Get("/{id}", fileHandler.GetFile)
 			r.Delete("/{id}", fileHandler.DeleteFile)
+		})
+
+		// Billing routes
+		r.Route("/billing", func(r chi.Router) {
+			r.Post("/checkout", billingHandler.CreateCheckoutSession)
+			r.Get("/subscription", billingHandler.GetSubscription)
+			r.Post("/subscription/cancel", billingHandler.CancelSubscription)
+			r.Post("/subscription/reactivate", billingHandler.ReactivateSubscription)
+			r.Post("/subscription/update", billingHandler.UpdateSubscription)
+			r.Post("/portal", billingHandler.CreatePortalSession)
 		})
 
 		// Monitoring routes (TODO: add admin-only middleware)

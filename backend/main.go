@@ -17,6 +17,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/email"
 	"github.com/mahendrakalkura/saas-blueprint/internal/logger"
 	appMiddleware "github.com/mahendrakalkura/saas-blueprint/internal/middleware"
+	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
@@ -48,6 +49,10 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to initialize storage service")
 	}
 	log.Info().Msg("Storage service initialized")
+
+	// Initialize payment service
+	paymentService := payment.NewService(&cfg.Stripe)
+	log.Info().Msg("Payment service initialized")
 
 	// Initialize email service
 	emailService := email.NewService(&cfg.Email)
@@ -105,7 +110,7 @@ func main() {
 	}))
 
 	// API v1 routes
-	r.Mount("/api/v1", v1.NewRouter(db, workerClient, storageService, cfg))
+	r.Mount("/api/v1", v1.NewRouter(db, workerClient, storageService, paymentService, cfg))
 
 	// Legacy health endpoint for backward compatibility
 	healthHandler := v1.NewHealthHandler(db)
