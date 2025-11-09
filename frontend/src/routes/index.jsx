@@ -3,6 +3,7 @@ import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { DashboardPage } from '../pages/DashboardPage'
+import { FilesPage } from '../pages/FilesPage'
 import { ProtectedRoute } from '../components/ProtectedRoute'
 
 export function AppRoutes() {
@@ -16,6 +17,14 @@ export function AppRoutes() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/files"
+        element={
+          <ProtectedRoute>
+            <FilesPage />
           </ProtectedRoute>
         }
       />
