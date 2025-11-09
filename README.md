@@ -5,19 +5,29 @@ Full-stack SaaS application with React frontend, Go backend, and PostgreSQL data
 ## Tech Stack
 
 **Frontend:**
-- React 19
-- Vite 7
-- Chakra UI 3
+- React 19 with TypeScript support
+- Vite 7 for fast development
+- Chakra UI 3 for beautiful components
+- React Router v7 for navigation
+- TanStack Query (React Query) v5 for server state
+- React Hook Form + Zod for form validation
+- Vitest for testing
 - Hot Module Replacement (HMR)
 
 **Backend:**
-- Go 1.23
-- Chi Router
+- Go 1.23 with Chi Router
 - sqlc for type-safe SQL queries
+- JWT authentication with refresh tokens
+- Structured logging (zerolog)
 - Air for hot reloading
+- Comprehensive middleware stack
 
-**Database:**
-- PostgreSQL 16
+**Infrastructure:**
+- PostgreSQL 16 with migrations (goose)
+- Redis 7 for caching/sessions
+- MinIO for S3-compatible object storage
+- Docker Compose for orchestration
+- Multi-stage builds for production
 
 ## Quick Start
 
@@ -32,10 +42,69 @@ Full-stack SaaS application with React frontend, Go backend, and PostgreSQL data
    docker-compose up
    ```
 
-3. **Access the application:**
+3. **Run database migrations:**
+   ```bash
+   make migrate-up
+   ```
+
+4. **Seed demo data (optional):**
+   ```bash
+   make seed
+   ```
+
+5. **Access the application:**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8080
-   - Database: localhost:5432
+   - MinIO Console: http://localhost:9001
+   - Database: localhost:5432 (postgres/postgres)
+
+6. **Demo Credentials:**
+   ```
+   Email: admin@example.com
+   Password: password123
+   ```
+
+## Features
+
+### ✅ Authentication
+- User registration with email
+- Login with JWT tokens (access + refresh)
+- Password reset flow
+- Email verification (tokens ready, email service pending)
+- Protected routes on frontend
+- Session management in database
+
+### ✅ Database
+- PostgreSQL with connection pooling
+- Type-safe queries with sqlc
+- Database migrations with goose
+- Comprehensive schema (users, sessions, organizations, audit logs, etc.)
+- Full-text search support
+
+### ✅ Infrastructure
+- Docker Compose orchestration
+- Multi-stage Docker builds
+- Hot reloading (frontend & backend)
+- Graceful shutdown handling
+- Health check endpoints
+- MinIO for file storage (ready)
+- Redis for caching (ready)
+
+### ✅ Frontend
+- Modern React 19 with hooks
+- Dark mode support
+- Form validation
+- Loading states & error boundaries
+- Protected routes
+- API client with auto-refresh
+
+### ✅ Backend
+- API versioning (v1)
+- Request validation
+- Security headers (CSP, XSS, CSRF protection)
+- Pagination helpers
+- Structured logging
+- CORS configuration
 
 ## Development
 
@@ -45,21 +114,49 @@ Both frontend and backend have hot reloading enabled:
 - **Frontend**: Vite HMR reloads instantly on file changes
 - **Backend**: Air rebuilds and restarts on Go file changes
 
+### Database Migrations
+
+Create a new migration:
+```bash
+make migrate-create name=add_new_table
+```
+
+Run migrations:
+```bash
+make migrate-up
+```
+
+Rollback last migration:
+```bash
+make migrate-down
+```
+
 ### Using sqlc
 
 1. Add database schema to `backend/db/migrations/*.sql`
 2. Add queries to `backend/db/queries/*.sql`
 3. Generate Go code:
    ```bash
-   docker-compose exec backend sqlc generate
+   make sqlc
    ```
 
-See `backend/db/queries/.gitkeep` for query syntax examples.
+### Seeding Data
+
+Populate the database with demo users:
+```bash
+make seed
+```
+
+This creates three demo accounts (all with password: `password123`):
+- admin@example.com
+- john@example.com
+- jane@example.com
 
 ### API Development
 
-- API endpoints should be added in `backend/main.go`
+- API endpoints are in `backend/internal/api/v1/`
 - All API routes are proxied from frontend via `/api/*`
+- Use the auth middleware for protected routes
 - Backend includes CORS middleware for local development
 
 ### Project Structure

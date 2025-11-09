@@ -20,7 +20,6 @@ dist-ssr
 # Backend
 backend/tmp
 backend/build-errors.log
-backend/db/sqlc/*.go
 
 # Editor directories and files
 .vscode/*

@@ -1,0 +1,20 @@
+# Generated sqlc code
+
+This directory contains type-safe Go code generated from SQL queries.
+
+## Generating Code
+
+Run `make sqlc` or:
+```bash
+docker-compose exec backend sqlc generate
+```
+
+## Files
+
+The following files are auto-generated:
+- db.go - Database interface
+- models.go - Go structs for database tables
+- querier.go - Interface for all queries
+- *.sql.go - Query implementations
+
+Do not edit these files manually. Instead, modify the SQL files in `db/queries/` and regenerate.
