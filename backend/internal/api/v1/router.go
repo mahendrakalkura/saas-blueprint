@@ -5,6 +5,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/auth"
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
 	"github.com/mahendrakalkura/saas-blueprint/internal/database"
+	appMiddleware "github.com/mahendrakalkura/saas-blueprint/internal/middleware"
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
@@ -76,18 +77,34 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 
 		// Organization routes
 		r.Route("/organizations", func(r chi.Router) {
+			// Public organization routes (auth only)
 			r.Post("/", orgHandler.CreateOrganization)
 			r.Get("/", orgHandler.ListOrganizations)
-			r.Get("/{id}", orgHandler.GetOrganization)
-			r.Put("/{id}", orgHandler.UpdateOrganization)
-			r.Delete("/{id}", orgHandler.DeleteOrganization)
-
-			// Member management
-			r.Get("/{id}/members", orgHandler.ListMembers)
-			r.Post("/{id}/members/invite", orgHandler.InviteMember)
 			r.Post("/invitations/{token}/accept", orgHandler.AcceptInvitation)
-			r.Put("/{id}/members/{memberID}/role", orgHandler.UpdateMemberRole)
-			r.Delete("/{id}/members/{memberID}", orgHandler.RemoveMember)
+
+			// Organization-specific routes (require membership)
+			r.Route("/{id}", func(r chi.Router) {
+				r.Use(appMiddleware.RequireOrganizationMember(memberRepo))
+
+				// Member-level access (read-only)
+				r.Get("/", orgHandler.GetOrganization)
+				r.Get("/members", orgHandler.ListMembers)
+
+				// Admin-level access (can manage members and settings)
+				r.Group(func(r chi.Router) {
+					r.Use(appMiddleware.RequireAdmin())
+					r.Put("/", orgHandler.UpdateOrganization)
+					r.Post("/members/invite", orgHandler.InviteMember)
+					r.Put("/members/{memberID}/role", orgHandler.UpdateMemberRole)
+					r.Delete("/members/{memberID}", orgHandler.RemoveMember)
+				})
+
+				// Owner-only access (can delete organization)
+				r.Group(func(r chi.Router) {
+					r.Use(appMiddleware.RequireOwner())
+					r.Delete("/", orgHandler.DeleteOrganization)
+				})
+			})
 		})
 
 		// Monitoring routes (TODO: add admin-only middleware)
