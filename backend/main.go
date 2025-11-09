@@ -54,6 +54,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/database"
 	"github.com/mahendrakalkura/saas-blueprint/internal/email"
 	"github.com/mahendrakalkura/saas-blueprint/internal/logger"
+	"github.com/mahendrakalkura/saas-blueprint/internal/metrics"
 	appMiddleware "github.com/mahendrakalkura/saas-blueprint/internal/middleware"
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/ratelimit"
@@ -62,6 +63,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
 	"github.com/mahendrakalkura/saas-blueprint/internal/websocket"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -71,6 +73,11 @@ func main() {
 	// Initialize logger
 	log := logger.New(cfg.Server.Environment)
 	log.Info().Str("environment", cfg.Server.Environment).Msg("Starting application")
+
+	// Initialize metrics
+	metrics.Initialize("1.0.0", cfg.Server.Environment)
+	metrics.ApplicationStartTime.SetToCurrentTime()
+	log.Info().Msg("Metrics initialized")
 
 	// Initialize database
 	db, err := database.New(&cfg.Database)
@@ -156,6 +163,7 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(appMiddleware.Logger(log.Logger))
+	r.Use(appMiddleware.Metrics)
 	r.Use(middleware.Recoverer)
 	r.Use(appMiddleware.SecurityHeaders)
 	r.Use(middleware.Compress(5))
@@ -169,6 +177,9 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+
+	// Metrics endpoint (Prometheus)
+	r.Handle("/metrics", promhttp.Handler())
 
 	// API v1 routes
 	r.Mount("/api/v1", v1.NewRouter(db, workerClient, storageService, paymentService, wsHub, rateLimiter, cfg))
