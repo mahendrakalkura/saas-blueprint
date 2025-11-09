@@ -6,19 +6,22 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
 	"github.com/mahendrakalkura/saas-blueprint/internal/database"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
+	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
 )
 
-func NewRouter(db *database.DB, workerClient *worker.Client, cfg *config.Config) *chi.Mux {
+func NewRouter(db *database.DB, workerClient *worker.Client, storageService *storage.Service, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Repositories
 	userRepo := repository.NewUserRepository(db.DB)
 	sessionRepo := repository.NewSessionRepository(db.DB)
+	fileRepo := repository.NewFileRepository(db.DB)
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
 	authHandler := NewAuthHandler(userRepo, sessionRepo, workerClient, cfg)
+	fileHandler := NewFileHandler(fileRepo, userRepo, storageService)
 	monitoringHandler := NewMonitoringHandler(cfg)
 
 	// Health check endpoints
@@ -42,6 +45,15 @@ func NewRouter(db *database.DB, workerClient *worker.Client, cfg *config.Config)
 		r.Use(auth.AuthMiddleware(&cfg.JWT))
 
 		r.Get("/auth/me", authHandler.Me)
+
+		// File routes
+		r.Route("/files", func(r chi.Router) {
+			r.Post("/", fileHandler.UploadFile)
+			r.Post("/avatar", fileHandler.UploadAvatar)
+			r.Get("/", fileHandler.ListFiles)
+			r.Get("/{id}", fileHandler.GetFile)
+			r.Delete("/{id}", fileHandler.DeleteFile)
+		})
 
 		// Monitoring routes (TODO: add admin-only middleware)
 		r.Route("/monitoring", func(r chi.Router) {

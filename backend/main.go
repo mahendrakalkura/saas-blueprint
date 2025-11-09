@@ -18,6 +18,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/logger"
 	appMiddleware "github.com/mahendrakalkura/saas-blueprint/internal/middleware"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
+	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
 )
 
@@ -40,6 +41,13 @@ func main() {
 
 	// Initialize repositories
 	sessionRepo := repository.NewSessionRepository(db.DB)
+
+	// Initialize storage service
+	storageService, err := storage.NewService(&cfg.Storage)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize storage service")
+	}
+	log.Info().Msg("Storage service initialized")
 
 	// Initialize email service
 	emailService := email.NewService(&cfg.Email)
@@ -97,7 +105,7 @@ func main() {
 	}))
 
 	// API v1 routes
-	r.Mount("/api/v1", v1.NewRouter(db, workerClient, cfg))
+	r.Mount("/api/v1", v1.NewRouter(db, workerClient, storageService, cfg))
 
 	// Legacy health endpoint for backward compatibility
 	healthHandler := v1.NewHealthHandler(db)
