@@ -8,8 +8,8 @@ type Notification struct {
 	Type      string                 `json:"type"` // organization_invite, member_added, etc.
 	Title     string                 `json:"title"`
 	Message   string                 `json:"message"`
-	Data      map[string]interface{} `json:"data,omitempty"`
-	Read      bool                   `json:"read"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	IsRead    bool                   `json:"is_read"`
 	ReadAt    *time.Time             `json:"read_at,omitempty"`
 	CreatedAt time.Time              `json:"created_at"`
 }

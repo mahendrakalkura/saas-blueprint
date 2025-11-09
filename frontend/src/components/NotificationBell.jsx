@@ -181,12 +181,12 @@ export function NotificationBell() {
               <MenuItem
                 key={notification.id}
                 onClick={() => {
-                  if (!notification.read) {
+                  if (!notification.is_read) {
                     markAsReadMutation.mutate(notification.id)
                   }
                 }}
-                bg={notification.read ? 'transparent' : 'blue.50'}
-                _hover={{ bg: notification.read ? 'gray.50' : 'blue.100' }}
+                bg={notification.is_read ? 'transparent' : 'blue.50'}
+                _hover={{ bg: notification.is_read ? 'gray.50' : 'blue.100' }}
                 py={3}
                 px={4}
               >
@@ -196,7 +196,7 @@ export function NotificationBell() {
                       {notification.title}
                     </Text>
                     <HStack gap={1}>
-                      {!notification.read && (
+                      {!notification.is_read && (
                         <IconButton
                           size="xs"
                           variant="ghost"

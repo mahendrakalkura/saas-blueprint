@@ -21,22 +21,22 @@ func NewNotificationRepository(db *sql.DB) *NotificationRepository {
 
 func (r *NotificationRepository) Create(ctx context.Context, notification *models.Notification) error {
 	query := `
-		INSERT INTO notifications (id, user_id, type, title, message, data, read, created_at)
+		INSERT INTO notifications (id, user_id, type, title, message, metadata, is_read, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, created_at
 	`
 
 	notification.ID = uuid.New().String()
 	notification.CreatedAt = time.Now()
-	notification.Read = false
+	notification.IsRead = false
 
-	// Convert data map to JSON
-	var dataJSON []byte
+	// Convert metadata map to JSON
+	var metadataJSON []byte
 	var err error
-	if notification.Data != nil {
-		dataJSON, err = json.Marshal(notification.Data)
+	if notification.Metadata != nil {
+		metadataJSON, err = json.Marshal(notification.Metadata)
 		if err != nil {
-			return fmt.Errorf("failed to marshal notification data: %w", err)
+			return fmt.Errorf("failed to marshal notification metadata: %w", err)
 		}
 	}
 
@@ -46,8 +46,8 @@ func (r *NotificationRepository) Create(ctx context.Context, notification *model
 		notification.Type,
 		notification.Title,
 		notification.Message,
-		dataJSON,
-		notification.Read,
+		metadataJSON,
+		notification.IsRead,
 		notification.CreatedAt,
 	).Scan(&notification.ID, &notification.CreatedAt)
 
@@ -60,13 +60,13 @@ func (r *NotificationRepository) Create(ctx context.Context, notification *model
 
 func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*models.Notification, error) {
 	query := `
-		SELECT id, user_id, type, title, message, data, read, read_at, created_at
+		SELECT id, user_id, type, title, message, metadata, is_read, read_at, created_at
 		FROM notifications
 		WHERE id = $1
 	`
 
 	notification := &models.Notification{}
-	var dataJSON []byte
+	var metadataJSON []byte
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&notification.ID,
@@ -74,8 +74,8 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*model
 		&notification.Type,
 		&notification.Title,
 		&notification.Message,
-		&dataJSON,
-		&notification.Read,
+		&metadataJSON,
+		&notification.IsRead,
 		&notification.ReadAt,
 		&notification.CreatedAt,
 	)
@@ -87,10 +87,10 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*model
 		return nil, fmt.Errorf("failed to get notification: %w", err)
 	}
 
-	// Unmarshal data JSON
-	if len(dataJSON) > 0 {
-		if err := json.Unmarshal(dataJSON, &notification.Data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal notification data: %w", err)
+	// Unmarshal metadata JSON
+	if len(metadataJSON) > 0 {
+		if err := json.Unmarshal(metadataJSON, &notification.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal notification metadata: %w", err)
 		}
 	}
 
@@ -99,7 +99,7 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*model
 
 func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string, limit, offset int) ([]*models.Notification, error) {
 	query := `
-		SELECT id, user_id, type, title, message, data, read, read_at, created_at
+		SELECT id, user_id, type, title, message, metadata, is_read, read_at, created_at
 		FROM notifications
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -115,7 +115,7 @@ func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string
 	notifications := []*models.Notification{}
 	for rows.Next() {
 		notification := &models.Notification{}
-		var dataJSON []byte
+		var metadataJSON []byte
 
 		err := rows.Scan(
 			&notification.ID,
@@ -123,8 +123,8 @@ func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string
 			&notification.Type,
 			&notification.Title,
 			&notification.Message,
-			&dataJSON,
-			&notification.Read,
+			&metadataJSON,
+			&notification.IsRead,
 			&notification.ReadAt,
 			&notification.CreatedAt,
 		)
@@ -132,10 +132,10 @@ func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string
 			return nil, fmt.Errorf("failed to scan notification: %w", err)
 		}
 
-		// Unmarshal data JSON
-		if len(dataJSON) > 0 {
-			if err := json.Unmarshal(dataJSON, &notification.Data); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal notification data: %w", err)
+		// Unmarshal metadata JSON
+		if len(metadataJSON) > 0 {
+			if err := json.Unmarshal(metadataJSON, &notification.Metadata); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal notification metadata: %w", err)
 			}
 		}
 
@@ -148,8 +148,8 @@ func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string
 func (r *NotificationRepository) MarkAsRead(ctx context.Context, id string) error {
 	query := `
 		UPDATE notifications
-		SET read = true, read_at = $1
-		WHERE id = $2 AND read = false
+		SET is_read = true, read_at = $1
+		WHERE id = $2 AND is_read = false
 	`
 
 	now := time.Now()
@@ -173,8 +173,8 @@ func (r *NotificationRepository) MarkAsRead(ctx context.Context, id string) erro
 func (r *NotificationRepository) MarkAllAsRead(ctx context.Context, userID string) error {
 	query := `
 		UPDATE notifications
-		SET read = true, read_at = $1
-		WHERE user_id = $2 AND read = false
+		SET is_read = true, read_at = $1
+		WHERE user_id = $2 AND is_read = false
 	`
 
 	now := time.Now()
@@ -190,7 +190,7 @@ func (r *NotificationRepository) GetUnreadCount(ctx context.Context, userID stri
 	query := `
 		SELECT COUNT(*)
 		FROM notifications
-		WHERE user_id = $1 AND read = false
+		WHERE user_id = $1 AND is_read = false
 	`
 
 	var count int

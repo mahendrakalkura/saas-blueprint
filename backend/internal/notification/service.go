@@ -37,8 +37,8 @@ func (s *Service) CreateAndSend(ctx context.Context, notification *models.Notifi
 		"type":       notification.Type,
 		"title":      notification.Title,
 		"message":    notification.Message,
-		"data":       notification.Data,
-		"read":       notification.Read,
+		"metadata":   notification.Metadata,
+		"is_read":    notification.IsRead,
 		"created_at": notification.CreatedAt,
 	}); err != nil {
 		log.Error().Err(err).Msg("Failed to send notification via WebSocket")
@@ -61,7 +61,7 @@ func (s *Service) SendWelcomeNotification(ctx context.Context, userID, userName 
 		Type:    models.NotificationTypeWelcome,
 		Title:   "Welcome!",
 		Message: "Welcome to our platform, " + userName + "! We're excited to have you here.",
-		Data: map[string]interface{}{
+		Metadata: map[string]interface{}{
 			"user_name": userName,
 		},
 	}
@@ -76,7 +76,7 @@ func (s *Service) SendOrganizationInviteNotification(ctx context.Context, userID
 		Type:    models.NotificationTypeOrganizationInvite,
 		Title:   "Organization Invitation",
 		Message: inviterName + " invited you to join " + orgName,
-		Data: map[string]interface{}{
+		Metadata: map[string]interface{}{
 			"organization_name": orgName,
 			"inviter_name":      inviterName,
 		},
@@ -92,7 +92,7 @@ func (s *Service) SendMemberAddedNotification(ctx context.Context, userID, orgNa
 		Type:    models.NotificationTypeMemberAdded,
 		Title:   "Added to Organization",
 		Message: "You've been added to " + orgName + " as " + role,
-		Data: map[string]interface{}{
+		Metadata: map[string]interface{}{
 			"organization_name": orgName,
 			"role":              role,
 		},
@@ -108,7 +108,7 @@ func (s *Service) SendRoleChangedNotification(ctx context.Context, userID, orgNa
 		Type:    models.NotificationTypeRoleChanged,
 		Title:   "Role Changed",
 		Message: "Your role in " + orgName + " has been changed from " + oldRole + " to " + newRole,
-		Data: map[string]interface{}{
+		Metadata: map[string]interface{}{
 			"organization_name": orgName,
 			"old_role":          oldRole,
 			"new_role":          newRole,
