@@ -14,6 +14,7 @@ type Config struct {
 	Storage  StorageConfig
 	Email    EmailConfig
 	Redis    RedisConfig
+	OAuth    OAuthConfig
 }
 
 type ServerConfig struct {
@@ -68,6 +69,15 @@ type RedisConfig struct {
 	DB       int
 }
 
+type OAuthConfig struct {
+	GoogleClientID     string
+	GoogleClientSecret string
+	GoogleRedirectURL  string
+	GitHubClientID     string
+	GitHubClientSecret string
+	GitHubRedirectURL  string
+}
+
 func Load() *Config {
 	return &Config{
 		Server: ServerConfig{
@@ -114,6 +124,14 @@ func Load() *Config {
 			Port:     getEnv("REDIS_PORT", "6379"),
 			Password: getEnv("REDIS_PASSWORD", ""),
 			DB:       getEnvAsInt("REDIS_DB", 0),
+		},
+		OAuth: OAuthConfig{
+			GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+			GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+			GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),
+			GitHubClientID:     getEnv("GITHUB_CLIENT_ID", ""),
+			GitHubClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),
+			GitHubRedirectURL:  getEnv("GITHUB_REDIRECT_URL", "http://localhost:8080/api/v1/auth/github/callback"),
 		},
 	}
 }
