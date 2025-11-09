@@ -13,6 +13,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/ratelimit"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
+	"github.com/mahendrakalkura/saas-blueprint/internal/search"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
 	"github.com/mahendrakalkura/saas-blueprint/internal/websocket"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
@@ -34,6 +35,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	// Services
 	oauthService := oauth.NewService(&cfg.OAuth)
 	mfaService := mfa.NewService("SaaS Blueprint")
+	searchService := search.NewService(db)
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
@@ -47,6 +49,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	oauthHandler := NewOAuthHandler(oauthService, userRepo, sessionRepo, oauthRepo, cfg)
 	mfaHandler := NewMFAHandler(mfaService, userRepo)
 	docsHandler := NewDocsHandler()
+	searchHandler := NewSearchHandler(searchService)
 
 	// Rate limit configurations
 	globalRateLimit := ratelimit.Config{
@@ -177,6 +180,16 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 			r.Post("/verify", mfaHandler.VerifyAndActivateMFA)
 			r.Post("/disable", mfaHandler.DisableMFA)
 			r.Post("/backup-codes/regenerate", mfaHandler.RegenerateBackupCodes)
+		})
+
+		// Search routes
+		r.Route("/search", func(r chi.Router) {
+			r.Get("/", searchHandler.Search)
+			r.Get("/users", searchHandler.SearchUsers)
+			r.Get("/organizations", searchHandler.SearchOrganizations)
+			r.Get("/notifications", searchHandler.SearchNotifications)
+			r.Get("/statistics", searchHandler.GetSearchStatistics)
+			r.Post("/rebuild", searchHandler.RebuildSearchIndex)
 		})
 
 		// WebSocket routes
