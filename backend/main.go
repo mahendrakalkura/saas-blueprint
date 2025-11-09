@@ -20,6 +20,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
+	"github.com/mahendrakalkura/saas-blueprint/internal/websocket"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
 )
 
@@ -88,6 +89,14 @@ func main() {
 	}()
 	defer scheduler.Shutdown()
 
+	// Initialize WebSocket hub
+	wsHub := websocket.NewHub()
+	go func() {
+		log.Info().Msg("WebSocket hub starting")
+		wsHub.Run()
+	}()
+	log.Info().Msg("WebSocket hub initialized")
+
 	// Initialize router
 	r := chi.NewRouter()
 
@@ -110,7 +119,7 @@ func main() {
 	}))
 
 	// API v1 routes
-	r.Mount("/api/v1", v1.NewRouter(db, workerClient, storageService, paymentService, cfg))
+	r.Mount("/api/v1", v1.NewRouter(db, workerClient, storageService, paymentService, wsHub, cfg))
 
 	// Legacy health endpoint for backward compatibility
 	healthHandler := v1.NewHealthHandler(db)

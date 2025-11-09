@@ -9,10 +9,11 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
+	"github.com/mahendrakalkura/saas-blueprint/internal/websocket"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
 )
 
-func NewRouter(db *database.DB, workerClient *worker.Client, storageService *storage.Service, paymentService *payment.Service, cfg *config.Config) *chi.Mux {
+func NewRouter(db *database.DB, workerClient *worker.Client, storageService *storage.Service, paymentService *payment.Service, wsHub *websocket.Hub, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Repositories
@@ -30,6 +31,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	billingHandler := NewBillingHandler(paymentService, subRepo, userRepo, cfg)
 	orgHandler := NewOrganizationHandler(orgRepo, memberRepo, userRepo, workerClient)
 	monitoringHandler := NewMonitoringHandler(cfg)
+	wsHandler := websocket.NewHandler(wsHub)
 
 	// Health check endpoints
 	r.Get("/health", healthHandler.Check)
@@ -113,6 +115,10 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 			r.Get("/servers", monitoringHandler.GetServerInfo)
 			r.Get("/scheduled", monitoringHandler.GetScheduledTasks)
 		})
+
+		// WebSocket routes
+		r.Get("/ws", wsHandler.ServeWS)
+		r.Get("/ws/stats", wsHandler.GetStats)
 	})
 
 	return r

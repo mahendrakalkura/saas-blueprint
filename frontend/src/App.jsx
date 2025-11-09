@@ -2,6 +2,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ChakraProvider, QueryProvider } from './providers'
 import { AuthProvider } from './contexts/AuthContext'
+import { WebSocketProvider } from './lib/websocket'
 import { AppRoutes } from './routes'
 
 export function App() {
@@ -11,7 +12,9 @@ export function App() {
         <ChakraProvider>
           <BrowserRouter>
             <AuthProvider>
-              <AppRoutes />
+              <WebSocketProvider>
+                <AppRoutes />
+              </WebSocketProvider>
             </AuthProvider>
           </BrowserRouter>
         </ChakraProvider>
