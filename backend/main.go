@@ -57,7 +57,7 @@ func main() {
 	}))
 
 	// API v1 routes
-	r.Mount("/api/v1", v1.NewRouter(db))
+	r.Mount("/api/v1", v1.NewRouter(db, cfg))
 
 	// Legacy health endpoint for backward compatibility
 	healthHandler := v1.NewHealthHandler(db)
