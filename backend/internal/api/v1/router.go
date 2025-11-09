@@ -19,12 +19,15 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	sessionRepo := repository.NewSessionRepository(db.DB)
 	fileRepo := repository.NewFileRepository(db.DB)
 	subRepo := repository.NewSubscriptionRepository(db.DB)
+	orgRepo := repository.NewOrganizationRepository(db.DB)
+	memberRepo := repository.NewOrganizationMemberRepository(db.DB)
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
 	authHandler := NewAuthHandler(userRepo, sessionRepo, workerClient, cfg)
 	fileHandler := NewFileHandler(fileRepo, userRepo, storageService)
 	billingHandler := NewBillingHandler(paymentService, subRepo, userRepo, cfg)
+	orgHandler := NewOrganizationHandler(orgRepo, memberRepo, userRepo, workerClient)
 	monitoringHandler := NewMonitoringHandler(cfg)
 
 	// Health check endpoints
@@ -71,20 +74,28 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 			r.Post("/portal", billingHandler.CreatePortalSession)
 		})
 
+		// Organization routes
+		r.Route("/organizations", func(r chi.Router) {
+			r.Post("/", orgHandler.CreateOrganization)
+			r.Get("/", orgHandler.ListOrganizations)
+			r.Get("/{id}", orgHandler.GetOrganization)
+			r.Put("/{id}", orgHandler.UpdateOrganization)
+			r.Delete("/{id}", orgHandler.DeleteOrganization)
+
+			// Member management
+			r.Get("/{id}/members", orgHandler.ListMembers)
+			r.Post("/{id}/members/invite", orgHandler.InviteMember)
+			r.Post("/invitations/{token}/accept", orgHandler.AcceptInvitation)
+			r.Put("/{id}/members/{memberID}/role", orgHandler.UpdateMemberRole)
+			r.Delete("/{id}/members/{memberID}", orgHandler.RemoveMember)
+		})
+
 		// Monitoring routes (TODO: add admin-only middleware)
 		r.Route("/monitoring", func(r chi.Router) {
 			r.Get("/queues", monitoringHandler.GetQueueStats)
 			r.Get("/servers", monitoringHandler.GetServerInfo)
 			r.Get("/scheduled", monitoringHandler.GetScheduledTasks)
 		})
-
-		// Additional protected routes will be added here
-		// r.Route("/users", func(r chi.Router) {
-		//     // User management routes
-		// })
-		// r.Route("/organizations", func(r chi.Router) {
-		//     // Organization routes
-		// })
 	})
 
 	return r
