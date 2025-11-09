@@ -6,6 +6,8 @@ import { DashboardPage } from '../pages/DashboardPage'
 import { FilesPage } from '../pages/FilesPage'
 import { BillingPage } from '../pages/BillingPage'
 import { PricingPage } from '../pages/PricingPage'
+import { OrganizationsPage } from '../pages/OrganizationsPage'
+import { OrganizationDetailsPage } from '../pages/OrganizationDetailsPage'
 import { ProtectedRoute } from '../components/ProtectedRoute'
 
 export function AppRoutes() {
@@ -36,6 +38,22 @@ export function AppRoutes() {
         element={
           <ProtectedRoute>
             <BillingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/organizations"
+        element={
+          <ProtectedRoute>
+            <OrganizationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/organizations/:id"
+        element={
+          <ProtectedRoute>
+            <OrganizationDetailsPage />
           </ProtectedRoute>
         }
       />
