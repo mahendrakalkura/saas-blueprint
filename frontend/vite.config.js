@@ -14,4 +14,35 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Generate source maps for production debugging
+    sourcemap: false,
+
+    // Optimize chunk splitting
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['lucide-react'],
+          'query-vendor': ['@tanstack/react-query'],
+        },
+      },
+    },
+
+    // Compression and optimization
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.log in production
+        drop_debugger: true,
+      },
+    },
+
+    // Chunk size warnings
+    chunkSizeWarningLimit: 1000,
+  },
+
+  // PWA and asset optimization
+  publicDir: 'public',
 })

@@ -4,6 +4,9 @@ import { ChakraProvider, QueryProvider } from './providers'
 import { AuthProvider } from './contexts/AuthContext'
 import { WebSocketProvider } from './lib/websocket'
 import { AppRoutes } from './routes'
+import PWAInstallPrompt from './components/PWAInstallPrompt'
+import PWAUpdatePrompt from './components/PWAUpdatePrompt'
+import OnlineStatus from './components/OnlineStatus'
 
 export function App() {
   return (
@@ -14,6 +17,9 @@ export function App() {
             <AuthProvider>
               <WebSocketProvider>
                 <AppRoutes />
+                <PWAInstallPrompt />
+                <PWAUpdatePrompt />
+                <OnlineStatus />
               </WebSocketProvider>
             </AuthProvider>
           </BrowserRouter>
