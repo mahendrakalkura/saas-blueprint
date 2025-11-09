@@ -8,6 +8,7 @@ import { BillingPage } from '../pages/BillingPage'
 import { PricingPage } from '../pages/PricingPage'
 import { OrganizationsPage } from '../pages/OrganizationsPage'
 import { OrganizationDetailsPage } from '../pages/OrganizationDetailsPage'
+import { OAuthCallbackPage } from '../pages/OAuthCallbackPage'
 import { ProtectedRoute } from '../components/ProtectedRoute'
 
 export function AppRoutes() {
@@ -17,6 +18,7 @@ export function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/auth/callback" element={<OAuthCallbackPage />} />
       <Route
         path="/dashboard"
         element={

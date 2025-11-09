@@ -6,6 +6,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
 	"github.com/mahendrakalkura/saas-blueprint/internal/database"
 	appMiddleware "github.com/mahendrakalkura/saas-blueprint/internal/middleware"
+	"github.com/mahendrakalkura/saas-blueprint/internal/oauth"
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
@@ -24,6 +25,10 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	orgRepo := repository.NewOrganizationRepository(db.DB)
 	memberRepo := repository.NewOrganizationMemberRepository(db.DB)
 	notificationRepo := repository.NewNotificationRepository(db.DB)
+	oauthRepo := repository.NewOAuthProviderRepository(db.DB)
+
+	// Services
+	oauthService := oauth.NewService(&cfg.OAuth)
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
@@ -34,6 +39,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	monitoringHandler := NewMonitoringHandler(cfg)
 	wsHandler := websocket.NewHandler(wsHub)
 	notificationHandler := NewNotificationHandler(notificationRepo)
+	oauthHandler := NewOAuthHandler(oauthService, userRepo, sessionRepo, oauthRepo, cfg)
 
 	// Health check endpoints
 	r.Get("/health", healthHandler.Check)
@@ -49,6 +55,12 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 		r.Post("/verify-email", authHandler.VerifyEmail)
 		r.Post("/request-password-reset", authHandler.RequestPasswordReset)
 		r.Post("/reset-password", authHandler.ResetPassword)
+
+		// OAuth routes
+		r.Get("/google", oauthHandler.GoogleLogin)
+		r.Get("/google/callback", oauthHandler.GoogleCallback)
+		r.Get("/github", oauthHandler.GitHubLogin)
+		r.Get("/github/callback", oauthHandler.GitHubCallback)
 	})
 
 	// Stripe webhook (public, but verified)

@@ -18,6 +18,7 @@ import {
   FormErrorMessage,
 } from '@chakra-ui/react'
 import { useAuth } from '../contexts/AuthContext'
+import { SocialLogin } from '../components/SocialLogin'
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -114,6 +115,8 @@ export function LoginPage() {
               >
                 Sign In
               </Button>
+
+              <SocialLogin />
             </Stack>
           </form>
         </Box>

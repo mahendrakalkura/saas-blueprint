@@ -18,6 +18,7 @@ import {
   FormErrorMessage,
 } from '@chakra-ui/react'
 import { useAuth } from '../contexts/AuthContext'
+import { SocialLogin } from '../components/SocialLogin'
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -143,6 +144,8 @@ export function RegisterPage() {
               >
                 Sign Up
               </Button>
+
+              <SocialLogin />
             </Stack>
           </form>
         </Box>
