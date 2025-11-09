@@ -23,6 +23,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	subRepo := repository.NewSubscriptionRepository(db.DB)
 	orgRepo := repository.NewOrganizationRepository(db.DB)
 	memberRepo := repository.NewOrganizationMemberRepository(db.DB)
+	notificationRepo := repository.NewNotificationRepository(db.DB)
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
@@ -32,6 +33,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	orgHandler := NewOrganizationHandler(orgRepo, memberRepo, userRepo, workerClient)
 	monitoringHandler := NewMonitoringHandler(cfg)
 	wsHandler := websocket.NewHandler(wsHub)
+	notificationHandler := NewNotificationHandler(notificationRepo)
 
 	// Health check endpoints
 	r.Get("/health", healthHandler.Check)
@@ -114,6 +116,15 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 			r.Get("/queues", monitoringHandler.GetQueueStats)
 			r.Get("/servers", monitoringHandler.GetServerInfo)
 			r.Get("/scheduled", monitoringHandler.GetScheduledTasks)
+		})
+
+		// Notification routes
+		r.Route("/notifications", func(r chi.Router) {
+			r.Get("/", notificationHandler.ListNotifications)
+			r.Get("/unread-count", notificationHandler.GetUnreadCount)
+			r.Post("/mark-all-read", notificationHandler.MarkAllAsRead)
+			r.Post("/{id}/read", notificationHandler.MarkAsRead)
+			r.Delete("/{id}", notificationHandler.DeleteNotification)
 		})
 
 		// WebSocket routes
