@@ -18,6 +18,8 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/logger"
 	appMiddleware "github.com/mahendrakalkura/saas-blueprint/internal/middleware"
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
+	"github.com/mahendrakalkura/saas-blueprint/internal/ratelimit"
+	"github.com/mahendrakalkura/saas-blueprint/internal/redis"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
 	"github.com/mahendrakalkura/saas-blueprint/internal/websocket"
@@ -59,12 +61,24 @@ func main() {
 	emailService := email.NewService(&cfg.Email)
 	log.Info().Msg("Email service initialized")
 
+	// Initialize Redis client for rate limiting
+	redisClient, err := redis.NewClient(cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Password, cfg.Redis.DB)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize Redis client")
+	}
+	defer redisClient.Close()
+	log.Info().Msg("Redis client initialized")
+
+	// Initialize rate limiter
+	rateLimiter := ratelimit.NewLimiter(redisClient)
+	log.Info().Msg("Rate limiter initialized")
+
 	// Initialize worker client
-	workerClient := worker.NewClient(cfg.Redis.Addr)
+	workerClient := worker.NewClient(cfg.Redis.Addr())
 	log.Info().Msg("Worker client initialized")
 
 	// Initialize worker server for background job processing
-	workerServer := worker.NewServer(cfg.Redis.Addr, emailService, sessionRepo, &log.Logger)
+	workerServer := worker.NewServer(cfg.Redis.Addr(), emailService, sessionRepo, &log.Logger)
 
 	// Start worker server in a goroutine
 	go func() {
@@ -76,7 +90,7 @@ func main() {
 	defer workerServer.Shutdown()
 
 	// Initialize and start scheduler for periodic tasks
-	scheduler := worker.NewScheduler(cfg.Redis.Addr, &log.Logger)
+	scheduler := worker.NewScheduler(cfg.Redis.Addr(), &log.Logger)
 	if err := scheduler.RegisterTasks(); err != nil {
 		log.Fatal().Err(err).Msg("Failed to register scheduled tasks")
 	}
@@ -119,7 +133,7 @@ func main() {
 	}))
 
 	// API v1 routes
-	r.Mount("/api/v1", v1.NewRouter(db, workerClient, storageService, paymentService, wsHub, cfg))
+	r.Mount("/api/v1", v1.NewRouter(db, workerClient, storageService, paymentService, wsHub, rateLimiter, cfg))
 
 	// Legacy health endpoint for backward compatibility
 	healthHandler := v1.NewHealthHandler(db)

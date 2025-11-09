@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/mahendrakalkura/saas-blueprint/internal/auth"
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
@@ -9,13 +11,14 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/mfa"
 	"github.com/mahendrakalkura/saas-blueprint/internal/oauth"
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
+	"github.com/mahendrakalkura/saas-blueprint/internal/ratelimit"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
 	"github.com/mahendrakalkura/saas-blueprint/internal/storage"
 	"github.com/mahendrakalkura/saas-blueprint/internal/websocket"
 	"github.com/mahendrakalkura/saas-blueprint/internal/worker"
 )
 
-func NewRouter(db *database.DB, workerClient *worker.Client, storageService *storage.Service, paymentService *payment.Service, wsHub *websocket.Hub, cfg *config.Config) *chi.Mux {
+func NewRouter(db *database.DB, workerClient *worker.Client, storageService *storage.Service, paymentService *payment.Service, wsHub *websocket.Hub, rateLimiter *ratelimit.Limiter, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Repositories
@@ -44,13 +47,31 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	oauthHandler := NewOAuthHandler(oauthService, userRepo, sessionRepo, oauthRepo, cfg)
 	mfaHandler := NewMFAHandler(mfaService, userRepo)
 
-	// Health check endpoints
-	r.Get("/health", healthHandler.Check)
-	r.Get("/health/live", healthHandler.Liveness)
-	r.Get("/health/ready", healthHandler.Readiness)
+	// Rate limit configurations
+	globalRateLimit := ratelimit.Config{
+		Requests: cfg.RateLimit.GlobalRequests,
+		Window:   cfg.RateLimit.GlobalWindow,
+	}
+	authRateLimit := ratelimit.Config{
+		Requests: cfg.RateLimit.AuthRequests,
+		Window:   cfg.RateLimit.AuthWindow,
+	}
+	authenticatedRateLimit := ratelimit.Config{
+		Requests: cfg.RateLimit.AuthenticatedRequests,
+		Window:   cfg.RateLimit.AuthenticatedWindow,
+	}
 
-	// Auth routes (public)
+	// Health check endpoints (global rate limit)
+	r.Group(func(r chi.Router) {
+		r.Use(appMiddleware.RateLimit(rateLimiter, globalRateLimit))
+		r.Get("/health", healthHandler.Check)
+		r.Get("/health/live", healthHandler.Liveness)
+		r.Get("/health/ready", healthHandler.Readiness)
+	})
+
+	// Auth routes (strict rate limit to prevent brute force)
 	r.Route("/auth", func(r chi.Router) {
+		r.Use(appMiddleware.RateLimit(rateLimiter, authRateLimit))
 		r.Post("/register", authHandler.Register)
 		r.Post("/login", authHandler.Login)
 		r.Post("/refresh", authHandler.Refresh)
@@ -67,12 +88,13 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 		r.Get("/github/callback", oauthHandler.GitHubCallback)
 	})
 
-	// Stripe webhook (public, but verified)
+	// Stripe webhook (public, but verified - no rate limit)
 	r.Post("/webhooks/stripe", billingHandler.HandleWebhook)
 
-	// Protected routes (require authentication)
+	// Protected routes (require authentication + higher rate limits)
 	r.Group(func(r chi.Router) {
 		r.Use(auth.AuthMiddleware(&cfg.JWT))
+		r.Use(appMiddleware.RateLimit(rateLimiter, authenticatedRateLimit))
 
 		r.Get("/auth/me", authHandler.Me)
 

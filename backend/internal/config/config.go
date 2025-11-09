@@ -7,14 +7,15 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	JWT      JWTConfig
-	Stripe   StripeConfig
-	Storage  StorageConfig
-	Email    EmailConfig
-	Redis    RedisConfig
-	OAuth    OAuthConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	JWT       JWTConfig
+	Stripe    StripeConfig
+	Storage   StorageConfig
+	Email     EmailConfig
+	Redis     RedisConfig
+	OAuth     OAuthConfig
+	RateLimit RateLimitConfig
 }
 
 type ServerConfig struct {
@@ -69,6 +70,11 @@ type RedisConfig struct {
 	DB       int
 }
 
+// Addr returns the Redis address in host:port format
+func (r *RedisConfig) Addr() string {
+	return r.Host + ":" + r.Port
+}
+
 type OAuthConfig struct {
 	GoogleClientID     string
 	GoogleClientSecret string
@@ -76,6 +82,15 @@ type OAuthConfig struct {
 	GitHubClientID     string
 	GitHubClientSecret string
 	GitHubRedirectURL  string
+}
+
+type RateLimitConfig struct {
+	GlobalRequests        int
+	GlobalWindow          time.Duration
+	AuthRequests          int
+	AuthWindow            time.Duration
+	AuthenticatedRequests int
+	AuthenticatedWindow   time.Duration
 }
 
 func Load() *Config {
@@ -132,6 +147,14 @@ func Load() *Config {
 			GitHubClientID:     getEnv("GITHUB_CLIENT_ID", ""),
 			GitHubClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),
 			GitHubRedirectURL:  getEnv("GITHUB_REDIRECT_URL", "http://localhost:8080/api/v1/auth/github/callback"),
+		},
+		RateLimit: RateLimitConfig{
+			GlobalRequests:        getEnvAsInt("RATE_LIMIT_GLOBAL_REQUESTS", 100),
+			GlobalWindow:          time.Minute,
+			AuthRequests:          getEnvAsInt("RATE_LIMIT_AUTH_REQUESTS", 10),
+			AuthWindow:            5 * time.Minute,
+			AuthenticatedRequests: getEnvAsInt("RATE_LIMIT_AUTHENTICATED_REQUESTS", 1000),
+			AuthenticatedWindow:   time.Minute,
 		},
 	}
 }
