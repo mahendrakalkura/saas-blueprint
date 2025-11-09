@@ -9,6 +9,7 @@ import { PricingPage } from '../pages/PricingPage'
 import { OrganizationsPage } from '../pages/OrganizationsPage'
 import { OrganizationDetailsPage } from '../pages/OrganizationDetailsPage'
 import { OAuthCallbackPage } from '../pages/OAuthCallbackPage'
+import { SecuritySettingsPage } from '../pages/SecuritySettingsPage'
 import { ProtectedRoute } from '../components/ProtectedRoute'
 
 export function AppRoutes() {
@@ -56,6 +57,14 @@ export function AppRoutes() {
         element={
           <ProtectedRoute>
             <OrganizationDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/security"
+        element={
+          <ProtectedRoute>
+            <SecuritySettingsPage />
           </ProtectedRoute>
         }
       />
