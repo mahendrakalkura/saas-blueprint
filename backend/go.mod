@@ -20,6 +20,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/minio/minio-go/v7 v7.0.97 // indirect
+	github.com/pquerna/otp v1.4.0 // indirect
 	github.com/redis/go-redis/v9 v9.7.0 // indirect
 	github.com/resend/resend-go/v2 v2.28.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect

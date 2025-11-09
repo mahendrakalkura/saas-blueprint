@@ -16,6 +16,9 @@ type User struct {
 	EmailVerificationExpiresAt *time.Time `json:"-"`
 	PasswordResetToken         *string    `json:"-"`
 	PasswordResetExpiresAt     *time.Time `json:"-"`
+	MFAEnabled                 bool       `json:"mfa_enabled"`
+	MFASecret                  *string    `json:"-"`
+	MFABackupCodes             []string   `json:"-"`
 	IsActive                   bool       `json:"is_active"`
 	CreatedAt                  time.Time  `json:"created_at"`
 	UpdatedAt                  time.Time  `json:"updated_at"`

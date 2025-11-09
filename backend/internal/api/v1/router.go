@@ -6,6 +6,7 @@ import (
 	"github.com/mahendrakalkura/saas-blueprint/internal/config"
 	"github.com/mahendrakalkura/saas-blueprint/internal/database"
 	appMiddleware "github.com/mahendrakalkura/saas-blueprint/internal/middleware"
+	"github.com/mahendrakalkura/saas-blueprint/internal/mfa"
 	"github.com/mahendrakalkura/saas-blueprint/internal/oauth"
 	"github.com/mahendrakalkura/saas-blueprint/internal/payment"
 	"github.com/mahendrakalkura/saas-blueprint/internal/repository"
@@ -29,6 +30,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 
 	// Services
 	oauthService := oauth.NewService(&cfg.OAuth)
+	mfaService := mfa.NewService("SaaS Blueprint")
 
 	// Handlers
 	healthHandler := NewHealthHandler(db)
@@ -40,6 +42,7 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 	wsHandler := websocket.NewHandler(wsHub)
 	notificationHandler := NewNotificationHandler(notificationRepo)
 	oauthHandler := NewOAuthHandler(oauthService, userRepo, sessionRepo, oauthRepo, cfg)
+	mfaHandler := NewMFAHandler(mfaService, userRepo)
 
 	// Health check endpoints
 	r.Get("/health", healthHandler.Check)
@@ -137,6 +140,15 @@ func NewRouter(db *database.DB, workerClient *worker.Client, storageService *sto
 			r.Post("/mark-all-read", notificationHandler.MarkAllAsRead)
 			r.Post("/{id}/read", notificationHandler.MarkAsRead)
 			r.Delete("/{id}", notificationHandler.DeleteNotification)
+		})
+
+		// MFA routes
+		r.Route("/mfa", func(r chi.Router) {
+			r.Get("/status", mfaHandler.GetMFAStatus)
+			r.Post("/enable", mfaHandler.EnableMFA)
+			r.Post("/verify", mfaHandler.VerifyAndActivateMFA)
+			r.Post("/disable", mfaHandler.DisableMFA)
+			r.Post("/backup-codes/regenerate", mfaHandler.RegenerateBackupCodes)
 		})
 
 		// WebSocket routes

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/mahendrakalkura/saas-blueprint/internal/models"
 )
 
@@ -53,12 +54,13 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, error) {
 	query := `
 		SELECT id, email, password_hash, first_name, last_name, avatar_url, email_verified,
-		       is_active, created_at, updated_at
+		       mfa_enabled, mfa_secret, mfa_backup_codes, is_active, created_at, updated_at
 		FROM users
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 
 	user := &models.User{}
+	var backupCodes []sql.NullString
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.Email,
@@ -67,6 +69,9 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 		&user.LastName,
 		&user.AvatarURL,
 		&user.EmailVerified,
+		&user.MFAEnabled,
+		&user.MFASecret,
+		pq.Array(&backupCodes),
 		&user.IsActive,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -77,6 +82,16 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Convert backup codes from []sql.NullString to []string
+	if len(backupCodes) > 0 {
+		user.MFABackupCodes = make([]string, 0, len(backupCodes))
+		for _, code := range backupCodes {
+			if code.Valid {
+				user.MFABackupCodes = append(user.MFABackupCodes, code.String)
+			}
+		}
 	}
 
 	return user, nil
@@ -85,12 +100,13 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	query := `
 		SELECT id, email, password_hash, first_name, last_name, avatar_url, email_verified,
-		       is_active, created_at, updated_at
+		       mfa_enabled, mfa_secret, mfa_backup_codes, is_active, created_at, updated_at
 		FROM users
 		WHERE email = $1 AND deleted_at IS NULL
 	`
 
 	user := &models.User{}
+	var backupCodes []sql.NullString
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
@@ -99,6 +115,9 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		&user.LastName,
 		&user.AvatarURL,
 		&user.EmailVerified,
+		&user.MFAEnabled,
+		&user.MFASecret,
+		pq.Array(&backupCodes),
 		&user.IsActive,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -109,6 +128,16 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Convert backup codes from []sql.NullString to []string
+	if len(backupCodes) > 0 {
+		user.MFABackupCodes = make([]string, 0, len(backupCodes))
+		for _, code := range backupCodes {
+			if code.Valid {
+				user.MFABackupCodes = append(user.MFABackupCodes, code.String)
+			}
+		}
 	}
 
 	return user, nil
@@ -118,8 +147,9 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users
 		SET email = $1, first_name = $2, last_name = $3, avatar_url = $4,
-		    email_verified = $5, updated_at = $6
-		WHERE id = $7 AND deleted_at IS NULL
+		    email_verified = $5, mfa_enabled = $6, mfa_secret = $7,
+		    mfa_backup_codes = $8, updated_at = $9
+		WHERE id = $10 AND deleted_at IS NULL
 	`
 
 	user.UpdatedAt = time.Now()
@@ -130,6 +160,9 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 		user.LastName,
 		user.AvatarURL,
 		user.EmailVerified,
+		user.MFAEnabled,
+		user.MFASecret,
+		pq.Array(user.MFABackupCodes),
 		user.UpdatedAt,
 		user.ID,
 	)
