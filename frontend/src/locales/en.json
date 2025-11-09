@@ -1,0 +1,93 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "close": "Close"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "rememberMe": "Remember Me",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "resetPassword": "Reset Password",
+    "verifyEmail": "Verify Email",
+    "loginSuccess": "Successfully logged in",
+    "registerSuccess": "Successfully registered",
+    "logoutSuccess": "Successfully logged out"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back, {{name}}!",
+    "overview": "Overview",
+    "recentActivity": "Recent Activity",
+    "statistics": "Statistics"
+  },
+  "organizations": {
+    "title": "Organizations",
+    "createNew": "Create New Organization",
+    "organizationName": "Organization Name",
+    "members": "Members",
+    "settings": "Settings",
+    "inviteMembers": "Invite Members",
+    "leaveOrganization": "Leave Organization",
+    "deleteOrganization": "Delete Organization",
+    "role": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Member"
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "subscription": "Subscription",
+    "currentPlan": "Current Plan",
+    "upgradeNow": "Upgrade Now",
+    "manageBilling": "Manage Billing",
+    "paymentMethod": "Payment Method",
+    "billingHistory": "Billing History",
+    "free": "Free",
+    "pro": "Pro",
+    "enterprise": "Enterprise"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllAsRead": "Mark all as read",
+    "noNotifications": "No notifications yet",
+    "new": "New notification"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "account": "Account",
+    "security": "Security",
+    "preferences": "Preferences",
+    "language": "Language",
+    "theme": "Theme",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode"
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Invalid email address",
+    "minLength": "Must be at least {{min}} characters",
+    "maxLength": "Must be at most {{max}} characters",
+    "passwordMatch": "Passwords must match"
+  }
+}

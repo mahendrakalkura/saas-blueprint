@@ -1,0 +1,93 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "submit": "Enviar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "close": "Cerrar"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "logout": "Cerrar Sesión",
+    "register": "Registrarse",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar Contraseña",
+    "forgotPassword": "¿Olvidaste tu Contraseña?",
+    "rememberMe": "Recuérdame",
+    "noAccount": "¿No tienes una cuenta?",
+    "hasAccount": "¿Ya tienes una cuenta?",
+    "resetPassword": "Restablecer Contraseña",
+    "verifyEmail": "Verificar Correo",
+    "loginSuccess": "Sesión iniciada exitosamente",
+    "registerSuccess": "Registro exitoso",
+    "logoutSuccess": "Sesión cerrada exitosamente"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "welcome": "¡Bienvenido de nuevo, {{name}}!",
+    "overview": "Resumen",
+    "recentActivity": "Actividad Reciente",
+    "statistics": "Estadísticas"
+  },
+  "organizations": {
+    "title": "Organizaciones",
+    "createNew": "Crear Nueva Organización",
+    "organizationName": "Nombre de la Organización",
+    "members": "Miembros",
+    "settings": "Configuración",
+    "inviteMembers": "Invitar Miembros",
+    "leaveOrganization": "Abandonar Organización",
+    "deleteOrganization": "Eliminar Organización",
+    "role": {
+      "owner": "Propietario",
+      "admin": "Administrador",
+      "member": "Miembro"
+    }
+  },
+  "billing": {
+    "title": "Facturación",
+    "subscription": "Suscripción",
+    "currentPlan": "Plan Actual",
+    "upgradeNow": "Actualizar Ahora",
+    "manageBilling": "Administrar Facturación",
+    "paymentMethod": "Método de Pago",
+    "billingHistory": "Historial de Facturación",
+    "free": "Gratis",
+    "pro": "Pro",
+    "enterprise": "Empresa"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllAsRead": "Marcar todas como leídas",
+    "noNotifications": "No hay notificaciones aún",
+    "new": "Nueva notificación"
+  },
+  "settings": {
+    "title": "Configuración",
+    "profile": "Perfil",
+    "account": "Cuenta",
+    "security": "Seguridad",
+    "preferences": "Preferencias",
+    "language": "Idioma",
+    "theme": "Tema",
+    "darkMode": "Modo Oscuro",
+    "lightMode": "Modo Claro"
+  },
+  "validation": {
+    "required": "Este campo es obligatorio",
+    "email": "Dirección de correo electrónico no válida",
+    "minLength": "Debe tener al menos {{min}} caracteres",
+    "maxLength": "Debe tener como máximo {{max}} caracteres",
+    "passwordMatch": "Las contraseñas deben coincidir"
+  }
+}
