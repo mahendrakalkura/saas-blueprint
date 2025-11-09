@@ -207,6 +207,123 @@ Reset password with token.
 ### Readiness Probe
 **Endpoint:** `GET /api/v1/health/ready`
 
+## Monitoring Endpoints
+
+All monitoring endpoints require authentication.
+
+### Queue Statistics
+Get statistics about background job queues.
+
+**Endpoint:** `GET /api/v1/monitoring/queues`
+
+**Headers:**
+```
+Authorization: Bearer {access_token}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "queues": {
+    "critical": {
+      "active": 2,
+      "pending": 5,
+      "scheduled": 10,
+      "retry": 1,
+      "archived": 0,
+      "completed": 100,
+      "aggregating": 0,
+      "size": 18,
+      "latency": "2.5s",
+      "memory_usage": 1024
+    },
+    "default": {
+      "active": 1,
+      "pending": 3,
+      "scheduled": 5,
+      "retry": 0,
+      "archived": 0,
+      "completed": 50,
+      "aggregating": 0,
+      "size": 9,
+      "latency": "1.2s",
+      "memory_usage": 512
+    },
+    "low": {
+      "active": 0,
+      "pending": 1,
+      "scheduled": 2,
+      "retry": 0,
+      "archived": 0,
+      "completed": 25,
+      "aggregating": 0,
+      "size": 3,
+      "latency": "500ms",
+      "memory_usage": 256
+    }
+  }
+}
+```
+
+### Server Information
+Get information about worker servers.
+
+**Endpoint:** `GET /api/v1/monitoring/servers`
+
+**Headers:**
+```
+Authorization: Bearer {access_token}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "servers": [
+    {
+      "host": "worker-1",
+      "pid": 12345,
+      "server_id": "server-123",
+      "concurrency": 10,
+      "queues": {
+        "critical": 6,
+        "default": 3,
+        "low": 1
+      },
+      "strict_priority": false,
+      "status": "active",
+      "started_at": "2025-01-01T00:00:00Z",
+      "active_workers": 5
+    }
+  ]
+}
+```
+
+### Scheduled Tasks
+Get information about scheduled periodic tasks.
+
+**Endpoint:** `GET /api/v1/monitoring/scheduled`
+
+**Headers:**
+```
+Authorization: Bearer {access_token}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "scheduled_tasks": [
+    {
+      "id": "cleanup-sessions",
+      "spec": "@every 1h",
+      "task": "cleanup:sessions",
+      "opts": [],
+      "next_run": "2025-01-01T01:00:00Z",
+      "prev_run": "2025-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
 ## Error Responses
 
 All errors follow this format:
